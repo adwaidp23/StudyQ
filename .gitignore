@@ -1,0 +1,6 @@
+backend/__pycache__/
+backend/*.pyc
+backend/studyq.db
+frontend/node_modules/
+frontend/dist/
+.env
