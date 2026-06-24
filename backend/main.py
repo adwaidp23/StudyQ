@@ -29,6 +29,11 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 jwt = JWTManager(app)
 app.teardown_appcontext(close_db)
 
+# Initialize Database and FAISS on app startup (needed for PythonAnywhere WSGI)
+with app.app_context():
+    init_db()
+    init_faiss()
+
 # ---------------------------------------------------------------------------
 # Auth routes
 # ---------------------------------------------------------------------------
