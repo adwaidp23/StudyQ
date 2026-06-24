@@ -1,15 +1,13 @@
 import os
 import json
 import numpy as np
-import faiss
 from database import get_db
-
-# ---------------------------------------------------------------------------
-# Offline TF-IDF Vectorizer (Safe for PythonAnywhere Free Tier)
-# ---------------------------------------------------------------------------
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-# We use a compact vocabulary to keep FAISS fast and memory-efficient
+# ---------------------------------------------------------------------------
+# Offline TF-IDF Vectorizer
+# ---------------------------------------------------------------------------
 VECTORIZER = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 4), max_features=512, sublinear_tf=True)
 WORD_VECTORIZER = TfidfVectorizer(analyzer="word", ngram_range=(1, 2), max_features=512, sublinear_tf=True, stop_words="english")
 
@@ -27,7 +25,7 @@ SEED_CORPUS = [
 VECTORIZER.fit(SEED_CORPUS)
 WORD_VECTORIZER.fit(SEED_CORPUS)
 
-EMBEDDING_DIM = 1024 # 512 + 512
+EMBEDDING_DIM = 1024
 
 def get_embedding(text: str) -> np.ndarray:
     char_vec = VECTORIZER.transform([text]).toarray()[0]
@@ -39,34 +37,15 @@ def get_embedding(text: str) -> np.ndarray:
     return combined
 
 # ---------------------------------------------------------------------------
-# FAISS Index
+# Native NumPy Vector Search (No FAISS dependency)
 # ---------------------------------------------------------------------------
-index = faiss.IndexFlatIP(EMBEDDING_DIM) 
-faiss_id_map = {} 
-next_faiss_id = 0
-
 def init_faiss():
-    global index, faiss_id_map, next_faiss_id
-    index = faiss.IndexFlatIP(EMBEDDING_DIM)
-    faiss_id_map = {}
-    next_faiss_id = 0
-    
-    db = get_db()
-    try:
-        rows = db.execute("SELECT id, text FROM questions").fetchall()
-        for row in rows:
-            emb = get_embedding(row["text"])
-            add_to_faiss(row["id"], emb)
-    except Exception as e:
-        print(f"FAISS Init Error: {e}")
+    # Stub function since we removed FAISS, main.py still calls it on startup
+    pass
 
 def add_to_faiss(db_id: int, embedding: np.ndarray):
-    global index, faiss_id_map, next_faiss_id
-    emb_copy = embedding.copy().reshape(1, -1)
-    faiss.normalize_L2(emb_copy)
-    index.add(emb_copy)
-    faiss_id_map[next_faiss_id] = db_id
-    next_faiss_id += 1
+    # Stub function since we removed FAISS, main.py still calls it
+    pass
 
 TOPICS = {
     "Biology": "cell biology photosynthesis DNA genetics evolution",
@@ -94,27 +73,40 @@ def classify_topic(question: str) -> str:
     return best_topic
 
 def find_similar_questions(embedding: np.ndarray, exclude_user_id: int = None, top_k: int = 5):
-    if index.ntotal == 0:
+    db = get_db()
+    rows = db.execute("SELECT id, text, topic, embedding FROM questions").fetchall()
+    
+    if not rows:
         return []
         
-    emb_copy = embedding.copy().reshape(1, -1)
-    faiss.normalize_L2(emb_copy)
-    
-    D, I = index.search(emb_copy, min(index.ntotal, top_k + 2))
-    results = []
-    db = get_db()
-    for i in range(len(I[0])):
-        idx = I[0][i]
-        score = D[0][i]
-        if idx == -1: continue
-        db_id = faiss_id_map.get(idx)
-        if not db_id: continue
-        if score >= 0.99: continue
+    ids, texts, topics, embeddings = [], [], [], []
+    for row in rows:
+        emb = np.frombuffer(row["embedding"], dtype=np.float32)
+        if emb.shape[0] == EMBEDDING_DIM:
+            ids.append(row["id"])
+            texts.append(row["text"])
+            topics.append(row["topic"])
+            embeddings.append(emb)
             
-        row = db.execute("SELECT id, text, topic FROM questions WHERE id=?", (db_id,)).fetchone()
-        if row:
-            results.append({"id": row["id"], "text": row["text"], "topic": row["topic"], "similarity": round(float(score), 3)})
-            if len(results) >= top_k: break
+    if not embeddings:
+        return []
+        
+    matrix = np.vstack(embeddings)
+    scores = cosine_similarity(embedding.reshape(1, -1), matrix)[0]
+    
+    ranked = sorted(zip(scores, ids, texts, topics), reverse=True)
+    results = []
+    
+    for score, qid, text, topic in ranked:
+        if score >= 0.99: 
+            continue
+        if score < 0.05:
+            continue
+            
+        results.append({"id": qid, "text": text, "topic": topic, "similarity": round(float(score), 3)})
+        if len(results) >= top_k:
+            break
+            
     return results
 
 # ---------------------------------------------------------------------------
