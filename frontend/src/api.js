@@ -1,4 +1,4 @@
-const API_URL = "https://your-backend.onrender.com"; // we'll fill this after Step 3
+const API_URL = "https://adwaidp08.pythonanywhere.com";
 
 export default API_URL;
 
@@ -17,13 +17,9 @@ export async function apiFetch(path, options = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Remove trailing slash from API_URL if present, and ensure path starts with a slash
+  // Ensure no double slashes when joining the API_URL and the endpoint path
   const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
   const endpoint = path.startsWith('/') ? path : `/${path}`;
-
-  // Use base endpoint /api since all our flask routes are /api/*
-  // Wait, the routes in main.py are like /api/questions.
-  // The frontend Ask.jsx calls apiFetch('/questions').
   // Therefore the actual URL should be baseUrl + '/api' + endpoint
   
   const finalUrl = `${baseUrl}/api${endpoint}`;
