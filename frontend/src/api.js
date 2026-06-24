@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
+const API = "https://studyq-8l8r.onrender.com";
 
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem("studyq_token");
@@ -12,7 +12,7 @@ export async function apiFetch(path, options = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${API}${path}`, {
     ...options,
     headers,
   });
