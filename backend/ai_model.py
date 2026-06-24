@@ -110,16 +110,17 @@ def find_similar_questions(embedding: np.ndarray, exclude_user_id: int = None, t
     return results
 
 # ---------------------------------------------------------------------------
-# Agentic Tutor
+# Agentic Tutor (Powered by Google Gemini)
 # ---------------------------------------------------------------------------
 import requests
 
 class AgenticTutor:
     def __init__(self):
-        self.api_key = os.environ.get("OPENAI_API_KEY")
+        # We now look for GEMINI_API_KEY
+        self.api_key = os.environ.get("GEMINI_API_KEY")
         
     def generate_response(self, question: str, topic: str, similar_contexts: list) -> str:
-        if not self.api_key or self.api_key == "your_openai_api_key_here":
+        if not self.api_key or self.api_key == "your_api_key_here":
             return self._mock_generation(question, topic, similar_contexts)
             
         system_prompt = (
@@ -127,37 +128,32 @@ class AgenticTutor:
             "First, determine if the user's input is a valid, coherent academic or study-related question. "
             "If it is complete gibberish (e.g. 'asdasd'), heavily inappropriate, or a non-question, reply exactly with: "
             "'**Invalid Question:** Please ask a clear, coherent study or academic question.' and say nothing else.\n\n"
-            f"If it is a valid question, provide a structured explanation under the topic '{topic}'. Use markdown formatting."
+            f"If it is a valid question, provide a structured explanation under the topic '{topic}'. Use markdown formatting.\n"
         )
         
         if similar_contexts:
-            system_prompt += "\nRelated past questions in the system:\n"
+            system_prompt += "\nRelated past questions in the system for context:\n"
             for ctx in similar_contexts[:2]:
                 system_prompt += f"- {ctx['text']}\n"
                 
+        system_prompt += f"\n\nUser Question: {question}"
+                
         try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.api_key}"
             response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                },
+                url,
+                headers={"Content-Type": "application/json"},
                 json={
-                    "model": "gpt-3.5-turbo",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": question}
-                    ],
-                    "temperature": 0.7,
-                    "max_tokens": 400
+                    "contents": [{"parts": [{"text": system_prompt}]}],
+                    "generationConfig": {"temperature": 0.7, "maxOutputTokens": 400}
                 },
                 timeout=15
             )
             data = response.json()
-            if "choices" in data:
-                return data["choices"][0]["message"]["content"]
+            if "candidates" in data:
+                return data["candidates"][0]["content"]["parts"][0]["text"]
             else:
-                return f"Error from OpenAI: {data.get('error', {}).get('message', 'Unknown error')}"
+                return f"Error from Gemini: {data.get('error', {}).get('message', 'Unknown error')}"
         except Exception as e:
             return f"Error communicating with AI service: {str(e)}"
         
@@ -172,7 +168,7 @@ class AgenticTutor:
                 response += f"- *{ctx['text']}*\n"
                 
         response += "\n**Next Steps:**\nTo master this, try solving a practice problem applying this concept!"
-        response += "\n\n*(Note: This is a placeholder. Set OPENAI_API_KEY in your PythonAnywhere .env file to enable real AI responses!)*"
+        response += "\n\n*(Note: This is a placeholder. Add GEMINI_API_KEY to your .env file to enable real AI responses!)*"
         return response
 
 agent = AgenticTutor()
