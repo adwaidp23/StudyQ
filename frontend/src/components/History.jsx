@@ -1,35 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../api';
-import { History as HistoryIcon, Filter, Inbox, ChevronDown, ChevronUp } from 'lucide-react';
+import { History as HistoryIcon, Filter, Inbox, ChevronDown, ChevronUp, BrainCircuit } from 'lucide-react';
 import TopicBadge from './TopicBadge';
 
 export default function History() {
-  const [questions, setQuestions] = useState([]);
-  const [topics, setTopics] = useState([]);
   const [filter, setFilter] = useState('');
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const qsPath = filter ? `/questions?topic=${encodeURIComponent(filter)}` : '/questions';
-      const [qs, ts] = await Promise.all([
-        apiFetch(qsPath),
-        apiFetch('/topics')
-      ]);
-      setQuestions(qs);
-      setTopics(ts);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [filter]);
+  const { data: topics = [] } = useQuery({
+    queryKey: ['topics'],
+    queryFn: () => apiFetch('/topics')
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data: questions = [], isLoading } = useQuery({
+    queryKey: ['history', filter],
+    queryFn: () => {
+      const qsPath = filter ? `/questions?topic=${encodeURIComponent(filter)}` : '/questions';
+      return apiFetch(qsPath);
+    }
+  });
 
   const toggleExpand = (id) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
@@ -46,7 +36,7 @@ export default function History() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <HistoryIcon className="text-gradient" size={24} />
-          Question History
+          Study History
         </h2>
       </div>
 
@@ -79,7 +69,7 @@ export default function History() {
         ))}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
           <div className="spinner" />
         </div>
@@ -99,6 +89,17 @@ export default function History() {
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{formatDate(q.created_at)}</span>
                 </div>
               </div>
+
+              {q.agent_response && (
+                <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', borderLeft: '3px solid var(--accent-primary)' }}>
+                   <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)', marginBottom: '0.5rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <BrainCircuit size={14} className="text-gradient" /> Agentic Summary
+                  </h4>
+                  <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                    {q.agent_response}
+                  </div>
+                </div>
+              )}
 
               {q.similar && q.similar.length > 0 && (
                 <div>

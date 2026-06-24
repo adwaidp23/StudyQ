@@ -32,8 +32,14 @@ def init_db():
                 topic TEXT NOT NULL,
                 embedding BLOB NOT NULL,
                 similar_ids TEXT DEFAULT '[]',
+                agent_response TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
         """)
+        # Safe migration if table exists but without agent_response
+        try:
+            db.execute("ALTER TABLE questions ADD COLUMN agent_response TEXT;")
+        except sqlite3.OperationalError:
+            pass # Column likely exists
     print("Database initialised.")

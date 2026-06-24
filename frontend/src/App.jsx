@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import Auth from './components/Auth';
 import Ask from './components/Ask';
 import History from './components/History';
+import ErrorBoundary from './components/ErrorBoundary';
 import { LogOut, BookOpen } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('ask');
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const token = localStorage.getItem('studyq_token');
@@ -19,13 +22,14 @@ function App() {
   const handleLogin = (email) => {
     localStorage.setItem('studyq_email', email);
     setUser(email);
+    navigate('/');
   };
 
   const handleLogout = () => {
     localStorage.removeItem('studyq_token');
     localStorage.removeItem('studyq_email');
     setUser(null);
-    setActiveTab('ask');
+    navigate('/');
   };
 
   if (!user) {
@@ -60,14 +64,14 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             <div style={{ display: 'flex', background: 'var(--bg-tertiary)', padding: '0.25rem', borderRadius: 'var(--radius-sm)' }}>
               <button 
-                onClick={() => setActiveTab('ask')}
-                style={{ padding: '0.4rem 1rem', borderRadius: '4px', fontSize: '0.9rem', fontWeight: '500', background: activeTab === 'ask' ? 'var(--surface-glass)' : 'transparent', color: activeTab === 'ask' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                onClick={() => navigate('/')}
+                style={{ padding: '0.4rem 1rem', borderRadius: '4px', fontSize: '0.9rem', fontWeight: '500', background: location.pathname === '/' ? 'var(--surface-glass)' : 'transparent', color: location.pathname === '/' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
               >
                 Ask
               </button>
               <button 
-                onClick={() => setActiveTab('history')}
-                style={{ padding: '0.4rem 1rem', borderRadius: '4px', fontSize: '0.9rem', fontWeight: '500', background: activeTab === 'history' ? 'var(--surface-glass)' : 'transparent', color: activeTab === 'history' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                onClick={() => navigate('/history')}
+                style={{ padding: '0.4rem 1rem', borderRadius: '4px', fontSize: '0.9rem', fontWeight: '500', background: location.pathname === '/history' ? 'var(--surface-glass)' : 'transparent', color: location.pathname === '/history' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
               >
                 History
               </button>
@@ -84,7 +88,13 @@ function App() {
       </nav>
 
       <main className="main-content">
-        {activeTab === 'ask' ? <Ask /> : <History />}
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Ask />} />
+            <Route path="/history" element={<History />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   );
