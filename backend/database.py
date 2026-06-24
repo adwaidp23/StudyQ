@@ -37,9 +37,14 @@ def init_db():
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
         """)
-        # Safe migration if table exists but without agent_response
+        # Safe migration if table exists but without agent_response or embedding
         try:
             db.execute("ALTER TABLE questions ADD COLUMN agent_response TEXT;")
+        except sqlite3.OperationalError:
+            pass # Column likely exists
+            
+        try:
+            db.execute("ALTER TABLE questions ADD COLUMN embedding BLOB;")
         except sqlite3.OperationalError:
             pass # Column likely exists
     print("Database initialised.")
