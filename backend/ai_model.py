@@ -139,7 +139,7 @@ class AgenticTutor:
         system_prompt += f"\n\nUser Question: {question}"
                 
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={self.api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={self.api_key}"
             response = requests.post(
                 url,
                 headers={"Content-Type": "application/json"},
